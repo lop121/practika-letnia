@@ -4,14 +4,14 @@ import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QFileDialog, QVBoxLayout, QHBoxLayout, \
     QWidget, QInputDialog, QDialog
 from PyQt5.QtGui import QImage, QPixmap, QPalette, QColor
-from PyQt5.QtCore import Qt, QTimer
-
+from PyQt5.QtCore import Qt, QTimer, QSize
 
 class ImageProcessingApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Приложение для обработки изображений")
         self.setGeometry(100, 100, 800, 600)
+        self.setFixedSize(800, 600)  # Запрет на изменение размера окна
 
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor('#d7ffb9'))
@@ -73,44 +73,38 @@ class ImageProcessingApp(QMainWindow):
             return
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = frame_rgb.shape
+        bytes_per_line = ch * w
+        convert_to_qt_format = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        p = convert_to_qt_format.scaled(640, 480, Qt.KeepAspectRatio)
+        self.image_label.setPixmap(QPixmap.fromImage(p))
         self.image = frame_rgb
-        self.display_image(self.image)
 
     def load_image(self):
         options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Открыть изображение", "", "Изображения (*.jpg *.jpeg *.png)",
+        file_name, _ = QFileDialog.getOpenFileName(self, "Загрузить изображение", "", "Images (*.png *.xpm *.jpg)",
                                                    options=options)
         if file_name:
-            self.timer.stop()
             self.image = cv2.imread(file_name)
-            if self.image is None:
-                self.show_error("Не удалось загрузить изображение.")
-                return
             self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
             self.open_edit_window(self.image)
-
-    def display_image(self, image):
-        height, width, channel = image.shape
-        bytes_per_line = 3 * width
-        q_img = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_img)
-        self.image_label.setPixmap(pixmap)
-
-    def open_edit_window(self, image):
-        self.edit_window = EditWindow(image, self)
-        self.edit_window.show()
 
     def show_error(self, message):
         error_dialog = QDialog(self)
         error_dialog.setWindowTitle("Ошибка")
-        error_dialog.setGeometry(200, 200, 400, 200)
-        error_label = QLabel(message, error_dialog)
-        error_label.setStyleSheet("color: red;")
-        error_label.setAlignment(Qt.AlignCenter)
-        error_layout = QVBoxLayout()
-        error_layout.addWidget(error_label)
-        error_dialog.setLayout(error_layout)
+        error_dialog.setFixedSize(300, 100)
+        layout = QVBoxLayout()
+        label = QLabel(message, error_dialog)
+        layout.addWidget(label)
+        button = QPushButton("ОК", error_dialog)
+        button.clicked.connect(error_dialog.accept)
+        layout.addWidget(button)
+        error_dialog.setLayout(layout)
         error_dialog.exec_()
+
+    def open_edit_window(self, image):
+        self.edit_window = EditWindow(image, self)
+        self.edit_window.show()
 
 
 class EditWindow(QDialog):
@@ -121,7 +115,12 @@ class EditWindow(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Редактирование изображения")
-        self.setGeometry(150, 150, 600, 500)
+        self.setGeometry(100, 100, 800, 600)
+        self.setFixedSize(800, 600)  # Запрет на изменение размера окна
+
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor('#d7ffb9'))
+        self.setPalette(palette)
 
         layout = QVBoxLayout(self)
 
@@ -144,6 +143,10 @@ class EditWindow(QDialog):
         circle_button.clicked.connect(self.draw_circle_dialog)
         button_layout.addWidget(circle_button)
 
+        save_button = QPushButton("Сохранить", self)
+        save_button.clicked.connect(self.save_image)
+        button_layout.addWidget(save_button)
+
         close_button = QPushButton("Закрыть", self)
         close_button.clicked.connect(self.close)
         button_layout.addWidget(close_button)
@@ -154,6 +157,7 @@ class EditWindow(QDialog):
         resize_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
         brightness_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
         circle_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
+        save_button.setStyleSheet("background-color: #2196F3; color: white; border-radius: 15px; padding: 10px;")
         close_button.setStyleSheet("background-color: #f44336; color: white; border-radius: 15px; padding: 10px;")
 
     def update_image(self, image):
@@ -189,15 +193,27 @@ class EditWindow(QDialog):
         return cv2.resize(image, (width, height))
 
     def decrease_brightness(self, image, value):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
         h, s, v = cv2.split(hsv)
         v = cv2.subtract(v, value)
         final_hsv = cv2.merge((h, s, v))
-        return cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        return cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
 
     def draw_circle(self, image, center, radius):
         return cv2.circle(image.copy(), center, radius, (0, 0, 255), 2)
 
+    def save_image(self):
+        file_dialog = QFileDialog(self)
+        file_dialog.setWindowTitle("Сохранить изображение")
+        file_dialog.setAcceptMode(QFileDialog.AcceptSave)
+        file_dialog.setNameFilter("Images (*.png *.jpg *.bmp)")
+
+        if file_dialog.exec_():
+            file_path = file_dialog.selectedFiles()[0]
+            cv2.imwrite(file_path, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
+
+            # Опционально: можно добавить сообщение об успешном сохранении
+            # QMessageBox.information(self, "Изображение сохранено", f"Изображение сохранено как {file_path}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
