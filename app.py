@@ -2,9 +2,10 @@ import sys
 import cv2
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QFileDialog, QVBoxLayout, QHBoxLayout, \
-    QWidget, QInputDialog, QDialog
-from PyQt5.QtGui import QImage, QPixmap, QPalette, QColor
+    QWidget, QInputDialog, QDialog, QGroupBox, QRadioButton
+from PyQt5.QtGui import QImage, QPixmap, QPalette, QColor, QFont
 from PyQt5.QtCore import Qt, QTimer, QSize
+
 
 class ImageProcessingApp(QMainWindow):
     def __init__(self):
@@ -45,7 +46,14 @@ class ImageProcessingApp(QMainWindow):
 
         layout.addLayout(button_layout)
 
-        self.setStyleSheet("color: black; font: 16px Arial;")
+        # Установка стиля и размера шрифта для кнопок
+        font = QFont("Helvetica Neue", 16, QFont.Bold)  # Пример использования шрифта Helvetica Neue
+        self.camera_button.setFont(font)
+        load_button.setFont(font)
+        exit_button.setFont(font)
+
+        self.setStyleSheet("color: black;")
+
         self.camera_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
         load_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
         exit_button.setStyleSheet("background-color: #f44336; color: white; border-radius: 15px; padding: 10px;")
@@ -103,7 +111,7 @@ class ImageProcessingApp(QMainWindow):
         error_dialog.exec_()
 
     def open_edit_window(self, image):
-        self.edit_window = EditWindow(image, self)
+        self.edit_window = EditWindow(image)
         self.edit_window.show()
 
 
@@ -115,8 +123,8 @@ class EditWindow(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Редактирование изображения")
-        self.setGeometry(100, 100, 800, 600)
-        self.setFixedSize(800, 600)  # Запрет на изменение размера окна
+        self.setGeometry(100, 100, 1000, 800)
+        self.setFixedSize(1000, 800)  # Запрет на изменение размера окна
 
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor('#d7ffb9'))
@@ -151,14 +159,59 @@ class EditWindow(QDialog):
         close_button.clicked.connect(self.close)
         button_layout.addWidget(close_button)
 
+        # Уменьшили размер кнопок
+        font = QFont("Helvetica Neue", 14, QFont.Bold)
+        for btn in [resize_button, brightness_button, circle_button, save_button, close_button]:
+            btn.setFont(font)
+            btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 8px; padding: 6px;")
+
         layout.addLayout(button_layout)
 
-        self.setStyleSheet("color: black; font: 16px Arial;")
-        resize_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
-        brightness_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
-        circle_button.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 15px; padding: 10px;")
-        save_button.setStyleSheet("background-color: #2196F3; color: white; border-radius: 15px; padding: 10px;")
-        close_button.setStyleSheet("background-color: #f44336; color: white; border-radius: 15px; padding: 10px;")
+        for btn in [resize_button, brightness_button, circle_button, save_button, close_button]:
+            btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 10px; padding: 8px;")
+
+        layout.addLayout(button_layout)
+
+        # Группа радиокнопок для выбора канала в одной линии
+        self.channel_group = QGroupBox("Выбор канала", self)
+        self.channel_layout = QHBoxLayout()
+
+        self.red_channel_button = QRadioButton("Красный канал")
+        self.green_channel_button = QRadioButton("Зелёный канал")
+        self.blue_channel_button = QRadioButton("Синий канал")
+
+        self.red_channel_button.setChecked(True)
+
+        self.channel_layout.addWidget(self.red_channel_button)
+        self.channel_layout.addWidget(self.green_channel_button)
+        self.channel_layout.addWidget(self.blue_channel_button)
+
+        self.channel_group.setLayout(self.channel_layout)
+        layout.addWidget(self.channel_group)
+
+        # Связываем кнопки с обработчиками
+        self.red_channel_button.toggled.connect(lambda: self.update_image_channel("red"))
+        self.green_channel_button.toggled.connect(lambda: self.update_image_channel("green"))
+        self.blue_channel_button.toggled.connect(lambda: self.update_image_channel("blue"))
+
+        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint)
+
+
+    def update_image_channel(self, channel):
+        if channel == "red":
+            channel_idx = 0
+        elif channel == "green":
+            channel_idx = 1
+        elif channel == "blue":
+            channel_idx = 2
+        else:
+            return
+
+        channel_image = self.image.copy()
+        channel_image[:, :, (channel_idx + 1) % 3] = 0
+        channel_image[:, :, (channel_idx + 2) % 3] = 0
+
+        self.update_image(channel_image)
 
     def update_image(self, image):
         qimage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888)
@@ -193,11 +246,11 @@ class EditWindow(QDialog):
         return cv2.resize(image, (width, height))
 
     def decrease_brightness(self, image, value):
-        hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv)
         v = cv2.subtract(v, value)
         final_hsv = cv2.merge((h, s, v))
-        return cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
+        return cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
 
     def draw_circle(self, image, center, radius):
         return cv2.circle(image.copy(), center, radius, (0, 0, 255), 2)
@@ -212,8 +265,6 @@ class EditWindow(QDialog):
             file_path = file_dialog.selectedFiles()[0]
             cv2.imwrite(file_path, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
 
-            # Опционально: можно добавить сообщение об успешном сохранении
-            # QMessageBox.information(self, "Изображение сохранено", f"Изображение сохранено как {file_path}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
