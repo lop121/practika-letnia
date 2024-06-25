@@ -2,7 +2,7 @@ import sys
 import cv2
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QFileDialog, QVBoxLayout, QHBoxLayout, \
-    QWidget, QInputDialog, QDialog, QGroupBox, QRadioButton
+    QWidget, QInputDialog, QDialog, QGroupBox, QRadioButton, QMessageBox
 from PyQt5.QtGui import QImage, QPixmap, QPalette, QColor, QFont
 from PyQt5.QtCore import Qt, QTimer, QSize
 
@@ -167,11 +167,6 @@ class EditWindow(QDialog):
 
         layout.addLayout(button_layout)
 
-        for btn in [resize_button, brightness_button, circle_button, save_button, close_button]:
-            btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 10px; padding: 8px;")
-
-        layout.addLayout(button_layout)
-
         # Группа радиокнопок для выбора канала в одной линии
         self.channel_group = QGroupBox("Выбор канала", self)
         self.channel_layout = QHBoxLayout()
@@ -196,7 +191,6 @@ class EditWindow(QDialog):
 
         self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint)
 
-
     def update_image_channel(self, channel):
         if channel == "red":
             channel_idx = 0
@@ -219,31 +213,34 @@ class EditWindow(QDialog):
         self.image_label.setPixmap(pixmap)
 
     def resize_image_dialog(self):
-        width, ok = QInputDialog.getInt(self, "Изменить размер", "Введите ширину:")
+        width, ok = QInputDialog.getInt(self, "Изменить размер", "Введите ширину(1-800):", 800, 1, 800, 1)
         if ok:
-            height, ok = QInputDialog.getInt(self, "Изменить размер", "Введите высоту:")
+            height, ok = QInputDialog.getInt(self, "Изменить размер", "Введите высоту(1-600):", 600, 1, 600, 1)
             if ok:
                 self.image = self.resize_image(self.image, width, height)
                 self.update_image(self.image)
 
     def decrease_brightness_dialog(self):
-        value, ok = QInputDialog.getInt(self, "Понизить яркость", "Введите значение уменьшения яркости:")
+        value, ok = QInputDialog.getInt(self, "Понизить яркость", "Введите значение уменьшения яркости(1-255):", 50, 1, 255, 1)
         if ok:
             self.image = self.decrease_brightness(self.image, value)
             self.update_image(self.image)
 
     def draw_circle_dialog(self):
-        x, ok = QInputDialog.getInt(self, "Нарисовать круг", "Введите координату x:")
+        x, ok = QInputDialog.getInt(self, "Нарисовать круг", "Введите координату x:", 0, -10000, 10000, 1)
         if ok:
-            y, ok = QInputDialog.getInt(self, "Нарисовать круг", "Введите координату y:")
+            y, ok = QInputDialog.getInt(self, "Нарисовать круг", "Введите координату y:", 0, -10000, 10000, 1)
             if ok:
-                radius, ok = QInputDialog.getInt(self, "Нарисовать круг", "Введите радиус:")
+                radius, ok = QInputDialog.getInt(self, "Нарисовать круг", "Введите радиус:", 50, 1, 1000, 1)
                 if ok:
                     self.image = self.draw_circle(self.image, (x, y), radius)
                     self.update_image(self.image)
 
     def resize_image(self, image, width, height):
-        return cv2.resize(image, (width, height))
+        try:
+            return cv2.resize(image, (width, height))
+        except cv2.error as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка изменения размера изображения: {str(e)}")
 
     def decrease_brightness(self, image, value):
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
