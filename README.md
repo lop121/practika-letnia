@@ -47,5 +47,5 @@ conda install pytorch==1.11.0 torchvision torchaudio -c pytorch
 ### Запуск приложения
 Для запуска приложения выполните следующую команду:
 ```bash
-python main.py
+python app.py
 ````
