@@ -18,20 +18,15 @@ cd practika-letnia
 
 Создайте и активируйте виртуальное окружение:
 ```bash
-# Для Windows
-python -m venv venv
-venv\Scripts\activate
-
-# Для macOS и Linux
-python3 -m venv venv
-source venv/bin/activate
+conda create --name myenv python=3.6
+conda activate myenv 
 ```
 
 ### Шаг 3: Установка зависимостей
 
 Установите все необходимые зависимости из файла requirements.txt:
 ````bash
-pip install -r requirements.txt
+conda env update --file environment.yml --prune
 ````
 
 ### Шаг 4: Установка PyTorch (рекомендовано)
