@@ -34,10 +34,10 @@ conda env update --file environment.yml --prune
 Если ваше приложение использует PyTorch, установите его с помощью следующей команды:
 ```bash
 # Для Windows
-conda install pytorch==1.11.0 torchvision torchaudio cpuonly -c pytorch
+conda install pytorch==1.10.2 torchvision torchaudio cpuonly -c pytorch
 
 # Для macOS и Linux
-conda install pytorch==1.11.0 torchvision torchaudio -c pytorch
+conda install pytorch==1.10.2 torchvision torchaudio -c pytorch
 ```
 ### Запуск приложения
 Для запуска приложения выполните следующую команду:
